@@ -1,0 +1,207 @@
+
+from Spectrum import Spectrum
+from Spectrum import Spectra_container
+
+
+import ROOT
+import argparse
+import os
+
+from array import array
+
+
+########################################
+# Main
+########################################
+
+def main():
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument( '--redraw', action='store_true', help='Forces the program to redraw the histograms from the root files')
+    args = parser.parse_args()
+
+
+    # ======================================
+    # Set up ROOT
+
+    print 'Importing root libraries'
+    ROOT.gSystem.Load("libDataFormatsFWLite.so")
+    ROOT.AutoLibraryLoader.enable()
+
+    ROOT.gROOT.SetBatch(True)
+    ROOT.gROOT.ProcessLine("gErrorIgnoreLevel = kError;")
+    #ROOT.gStyle.SetOptFit(1011)
+
+
+    # ======================================
+    # Set up spectrum class
+
+    kg1_root_file = '../kg1/Saved_root_files/HIG-RunIIWinter15GenOnly-00011.root'
+    kt1_root_file = '../kt1/Saved_root_files/HIG-RunIIWinter15GenOnly-00011.root'
+
+    # Initialize
+    spec = Spectra_container()
+
+    spec.Set_data_spectrum(
+        bins = [ 0, 15, 26, 43, 72, 125, 200 ],
+        values   = [ 9.0, 2.0, 3.4, 6.2, 4.6, 2.6, 0.7 ],
+        err_up   = [ 6.4, 4.9, 4.8, 3.7, 2.4, 1.0, 0.5 ],
+        err_down = [ -6.2, -5.5, -4.6, -3.5, -2.7, -1.0, -0.4 ],
+        )
+
+    if not args.redraw and os.path.isfile('H_kt1.pickle') and os.path.isfile('H_kg1.pickle'):
+        # Load pickle files with histograms in there
+        print 'Reading histograms from .pickle files'
+        spec.kt1.Set_values_from_pickle_file( 'H_kt1.pickle' )
+        spec.kg1.Set_values_from_pickle_file( 'H_kg1.pickle' )
+    else:
+        # Load both MC spectra from their root files (.Draw() command)
+        spec.kt1.Set_values_from_root_file( kt1_root_file, Verbose=True )
+        spec.kg1.Set_values_from_root_file( kg1_root_file, Verbose=True )
+
+    Draw_both_unnormalized_spectra( spec )
+    Draw_both_normalized_spectra( spec )
+
+
+
+########################################
+# Functions
+########################################
+
+def Draw_both_unnormalized_spectra( spec ):
+
+    ROOT.gStyle.SetOptStat(0)
+
+    spec.c1.Clear()
+
+    # Convenience pointers
+    kt1 = spec.kt1.H
+    kg1 = spec.kg1.H
+
+    kt1.Draw()
+    kg1.Draw('HISTSAME')
+
+    kt1.SetTitle('Both p_{t} spectra (unnormalized)')
+    kt1.GetXaxis().SetTitle( 'p_{t} [GeV]' )
+    kt1.GetYaxis().SetTitle( 'Entries' )
+    kt1.GetYaxis().SetTitleOffset(1.30)
+
+
+    # Histogram drawing settings
+    kt1.SetLineWidth(2)
+    kg1.SetLineWidth(2)
+    kg1.SetLineColor(2)
+
+    # Set y-axis limit
+    y_max = 1.1 * max( kt1.GetMaximum(), kg1.GetMaximum() )
+    kt1.SetMaximum( y_max )
+
+    # ======================================
+    # Some information text boxes
+
+    tl = ROOT.TLatex()
+    tl.SetNDC()
+    tl.SetTextSize(0.035)
+    
+    # Convenience variables: nl = next line, nc = next column
+    nl = 0.05
+    nc = 0.15
+    lx = 0.64
+    ly = 0.81
+
+    tl.SetTextColor(1)
+    tl.DrawLatex( lx, ly+nl, 'Total entries:' )    
+    tl.SetTextColor(4)
+    tl.DrawLatex( lx, ly, '#kappa_{t}=1, #kappa_{g}=0:' )
+    tl.DrawLatex( lx+nc, ly, str(int(kt1.GetEntries())) )
+    tl.SetTextColor(2)
+    tl.DrawLatex( lx, ly-nl, '#kappa_{t}=0, #kappa_{g}=1:' )
+    tl.DrawLatex( lx+nc, ly-nl, str(int(kg1.GetEntries())) )
+
+
+    spec.c1.Print( 'Both_unnormalized_spectra.pdf', '.pdf' )
+
+    ROOT.gStyle.SetOptStat(1011)
+
+
+def Draw_both_normalized_spectra( spec ):
+
+    ROOT.gStyle.SetOptStat(0)
+
+    spec.c1.Clear()
+
+    # Convenience pointers
+    kt1 = spec.kt1.H
+    kg1 = spec.kg1.H
+
+    # Normalizes
+    kt1.Scale( spec.kt1.normalization )
+    kg1.Scale( spec.kg1.normalization )
+
+    # Make data histogram
+    data = ROOT.TH1F( 'data', 'data',
+        spec.n_pt_bins,
+        array( 'd', spec.pt_bins ),
+        )
+
+    for i_val in range(spec.n_pt_bins):
+        data.SetBinContent( i_val+1, spec.data.values[i_val] )
+
+    kt1.Draw()
+    kg1.Draw('HISTSAME')
+    data.Draw('HISTSAME')
+
+    kt1.SetTitle('Both p_{t} spectra (normalized)')
+    kt1.GetXaxis().SetTitle( 'p_{t} [GeV]' )
+    kt1.GetYaxis().SetTitle( '#Delta#sigma [fb]' )
+    kt1.GetYaxis().SetTitleOffset(1.30)
+
+    # Histogram drawing settings
+    kt1.SetLineWidth(2)
+    kg1.SetLineWidth(2)
+    kg1.SetLineColor(2)
+    data.SetLineWidth(2)
+    data.SetLineColor(8)
+
+    # Set y-axis limit
+    y_max = 1.1 * max( kt1.GetMaximum(), kg1.GetMaximum() )
+    kt1.SetMaximum( y_max )
+
+    # ======================================
+    # Some information text boxes
+
+    tl = ROOT.TLatex()
+    tl.SetNDC()
+    tl.SetTextSize(0.035)
+    
+    # Convenience variables: nl = next line, nc = next column
+    nl = 0.05
+    nc = 0.15
+    lx = 0.64
+    ly = 0.81
+
+    tl.SetTextColor(1)
+    tl.DrawLatex( lx, ly+nl, 'Total cross section:' )
+    tl.SetTextColor(4)
+    tl.DrawLatex( lx, ly, '#kappa_{t}=1, #kappa_{g}=0:' )
+    tl.DrawLatex( lx+nc, ly, '{0:.2f} fb'.format(kt1.Integral()) )
+    tl.SetTextColor(2)
+    tl.DrawLatex( lx, ly-nl, '#kappa_{t}=0, #kappa_{g}=1:' )
+    tl.DrawLatex( lx+nc, ly-nl, '{0:.2f} fb'.format(kg1.Integral()) )
+    tl.SetTextColor(8)
+    tl.DrawLatex( lx, ly-2*nl, 'Data:' )
+    tl.DrawLatex( lx+nc, ly-2*nl, '{0:.2f} fb'.format(data.Integral()) )
+
+
+    spec.c1.Print( 'Both_normalized_spectra.pdf', '.pdf' )
+
+    ROOT.gStyle.SetOptStat(1011)
+
+
+
+
+########################################
+# End of Main
+########################################
+if __name__ == "__main__":
+    main()
