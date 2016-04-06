@@ -1,8 +1,0 @@
-<tool name="sigcpp" version="2.2.10-cms4">
-  <lib name="sigc-2.0"/>
-  <client>
-    <environment name="SIGCPP_BASE" default="/afs/cern.ch/cms/slc6_amd64_gcc481/external/sigcpp/2.2.10-cms4"/>
-    <environment name="LIBDIR" default="$SIGCPP_BASE/lib"/>
-    <environment name="INCLUDE" default="$SIGCPP_BASE/include/sigc++-2.0"/>
-  </client>
-</tool>
