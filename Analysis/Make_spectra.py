@@ -47,6 +47,7 @@ def main():
         values   = [ 9.0, 2.0, 3.4, 6.2, 4.6, 2.6, 0.7 ],
         err_up   = [ 6.4, 4.9, 4.8, 3.7, 2.4, 1.0, 0.5 ],
         err_down = [ -6.2, -5.5, -4.6, -3.5, -2.7, -1.0, -0.4 ],
+        max_pt = 300.0,
         )
 
     if not args.redraw and os.path.isfile('H_kt1.pickle') and os.path.isfile('H_kg1.pickle'):
@@ -138,18 +139,39 @@ def Draw_both_normalized_spectra( spec ):
     kt1.Scale( spec.kt1.normalization )
     kg1.Scale( spec.kg1.normalization )
 
-    # Make data histogram
-    data = ROOT.TH1F( 'data', 'data',
-        spec.n_pt_bins,
-        array( 'd', spec.pt_bins ),
-        )
+    # # Make data histogram
+    # data = ROOT.TH1F( 'data', 'data',
+    #     spec.n_pt_bins,
+    #     array( 'd', spec.pt_bins ),
+    #     )
 
-    for i_val in range(spec.n_pt_bins):
-        data.SetBinContent( i_val+1, spec.data.values[i_val] )
+    # for i_val in range(spec.n_pt_bins):
+    #     data.SetBinContent( i_val+1, spec.data.values[i_val] )
+
+    if not spec.data.err_up == []:
+        data = ROOT.TGraphAsymmErrors(
+            spec.n_pt_bins,
+            array( 'd', [ kt1.GetBinCenter(i+1) for i in range(spec.n_pt_bins) ] ),
+            array( 'd', spec.data.values ),
+            array( 'd', [ 0 for i in range(spec.n_pt_bins) ] ),
+            array( 'd', [ 0 for i in range(spec.n_pt_bins) ] ),
+            array( 'd', [ -i for i in spec.data.err_down ] ),
+            array( 'd', spec.data.err_up ),
+            )
+    else:
+        data = ROOT.TGraphAsymmErrors(
+            spec.n_pt_bins,
+            array( 'd', [ kt1.GetBinCenter(i+1) for i in range(spec.n_pt_bins) ] ),
+            array( 'd', spec.data.values ),
+            array( 'd', [ 0 for i in range(spec.n_pt_bins) ] ),
+            array( 'd', [ 0 for i in range(spec.n_pt_bins) ] ),
+            array( 'd', [ 0 for i in range(spec.n_pt_bins) ] ),
+            array( 'd', [ 0 for i in range(spec.n_pt_bins) ] ),
+            )
 
     kt1.Draw()
     kg1.Draw('HISTSAME')
-    data.Draw('HISTSAME')
+    data.Draw('PSAME')
 
     kt1.SetTitle('Both p_{t} spectra (normalized)')
     kt1.GetXaxis().SetTitle( 'p_{t} [GeV]' )
@@ -160,8 +182,9 @@ def Draw_both_normalized_spectra( spec ):
     kt1.SetLineWidth(2)
     kg1.SetLineWidth(2)
     kg1.SetLineColor(2)
-    data.SetLineWidth(2)
-    data.SetLineColor(8)
+    data.SetMarkerStyle(8)
+    #data.SetLineWidth(2)
+    data.SetMarkerColor(1)
 
     # Set y-axis limit
     y_max = 1.1 * max( kt1.GetMaximum(), kg1.GetMaximum() )
@@ -188,9 +211,9 @@ def Draw_both_normalized_spectra( spec ):
     tl.SetTextColor(2)
     tl.DrawLatex( lx, ly-nl, '#kappa_{t}=0, #kappa_{g}=1:' )
     tl.DrawLatex( lx+nc, ly-nl, '{0:.2f} fb'.format(kg1.Integral()) )
-    tl.SetTextColor(8)
+    tl.SetTextColor(1)
     tl.DrawLatex( lx, ly-2*nl, 'Data:' )
-    tl.DrawLatex( lx+nc, ly-2*nl, '{0:.2f} fb'.format(data.Integral()) )
+    tl.DrawLatex( lx+nc, ly-2*nl, '{0:.2f} fb'.format(sum(spec.data.values)) )
 
 
     spec.c1.Print( 'Both_normalized_spectra.pdf', '.pdf' )
